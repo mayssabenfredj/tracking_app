@@ -1,101 +1,62 @@
-import { useState, useEffect } from 'react';
-import { View, StyleSheet, Text, Platform } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+import { useState } from 'react';
+import { View, StyleSheet, Text } from 'react-native';
 import PositionBar from '@/components/PositionBar';
-import CustomMarker from '@/components/CustomMarker';
-import { useLocation } from '@/hooks/useLocation';
+import OpenStreetMap from '@/components/OpenStreetMap';
+import { useMockGPS } from '@/hooks/useMockGPS';
 
+/**
+ * GPS Tracking Screen
+ * 
+ * This app displays real-time GPS position data from external hardware GPS.
+ * No device GPS permissions needed - position comes from hardware backend.
+ * 
+ * Currently uses mock GPS data for development. Replace useMockGPS with
+ * real backend API/WebSocket calls when hardware is ready.
+ */
 export default function MapScreen() {
-  const { location, errorMsg, permissionGranted } = useLocation();
   const [mapReady, setMapReady] = useState(false);
-
-  if (errorMsg) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{errorMsg}</Text>
-        <Text style={styles.errorSubtext}>
-          Veuillez activer la localisation dans les paramètres
-        </Text>
-      </View>
-    );
-  }
-
-  if (!permissionGranted) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Permission requise</Text>
-        <Text style={styles.errorSubtext}>
-          L'application a besoin d'accéder à votre position
-        </Text>
-      </View>
-    );
-  }
-
-  const initialRegion = location.latitude && location.longitude
-    ? {
-        latitude: location.latitude,
-        longitude: location.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }
-    : {
-        latitude: 48.8566,
-        longitude: 2.3522,
-        latitudeDelta: 0.1,
-        longitudeDelta: 0.1,
-      };
+  
+  // Mock GPS data (simulates hardware GPS updates)
+  // TODO: Replace with real hardware GPS data via WebSocket/API
+  const position = useMockGPS(3000); // Update every 3 seconds
 
   return (
     <View style={styles.container}>
-      <MapView
-        style={styles.map}
-        provider={PROVIDER_DEFAULT}
-        initialRegion={initialRegion}
-        region={
-          location.latitude && location.longitude
-            ? {
-                latitude: location.latitude,
-                longitude: location.longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              }
-            : undefined
-        }
-        showsUserLocation={false}
-        showsMyLocationButton={true}
-        showsCompass={true}
+      <OpenStreetMap
+        latitude={position.latitude}
+        longitude={position.longitude}
+        zoom={15}
+        showMarker={true}
+        followPosition={false}
         onMapReady={() => setMapReady(true)}
-        customMapStyle={[
-          {
-            featureType: 'poi',
-            elementType: 'labels',
-            stylers: [{ visibility: 'off' }],
-          },
-        ]}
-      >
-        {location.latitude && location.longitude && (
-          <Marker
-            coordinate={{
-              latitude: location.latitude,
-              longitude: location.longitude,
-            }}
-            anchor={{ x: 0.5, y: 0.5 }}
-          >
-            <CustomMarker />
-          </Marker>
-        )}
-      </MapView>
+      />
 
       <PositionBar
-        latitude={location.latitude}
-        longitude={location.longitude}
-        altitude={location.altitude}
-        accuracy={location.accuracy}
-        speed={location.speed}
+        latitude={position.latitude}
+        longitude={position.longitude}
+        altitude={position.altitude}
+        accuracy={position.accuracy}
+        speed={position.speed}
       />
+      
+      {/* Development info banner */}
+      <View style={styles.devBanner}>
+        <Text style={styles.devText}>
+          🔧 Mode développement - Données GPS simulées
+        </Text>
+      </View>
     </View>
   );
 }
+
+    // Dynamic import of react-native-maps done outside the render flow with a side-effect
+    // so Metro/Expo won't eagerly evaluate native modules when routes are scanned in Expo Go.
+    // We intentionally do not import maps at module top-level.
+    // Kick off the dynamic import when the module loads (this runs when the component mounts).
+    // If the import fails (native module missing), we set mapsModule to null to show a helpful placeholder.
+    // Note: we keep the import here (in file scope) but it will only execute when this file is evaluated
+    // at runtime (after Metro decides to run this route's code). To be extra safe, we trigger import in a
+    // small effect inside the component instead of module top-level; see the useEffect above.
 
 const styles = StyleSheet.create({
   container: {
@@ -104,24 +65,24 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  devBanner: {
+    position: 'absolute',
+    top: 50,
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(59, 130, 246, 0.95)',
+    padding: 12,
+    borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    padding: 40,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  errorText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1e293b',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  errorSubtext: {
-    fontSize: 16,
-    color: '#64748b',
-    textAlign: 'center',
-    lineHeight: 24,
+  devText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
